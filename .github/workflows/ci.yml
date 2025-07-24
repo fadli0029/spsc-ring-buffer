@@ -1,0 +1,209 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }} with ${{ matrix.compiler }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        compiler: [gcc, clang]
+        exclude:
+          # Windows doesn't have gcc/clang in the same way
+          - os: windows-latest
+            compiler: gcc
+          - os: windows-latest
+            compiler: clang
+        include:
+          # Add MSVC for Windows
+          - os: windows-latest
+            compiler: msvc
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup C++ (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        if [ "${{ matrix.compiler }}" = "gcc" ]; then
+          sudo apt-get update && sudo apt-get install -y gcc-12 g++-12
+          echo "CC=gcc-12" >> $GITHUB_ENV
+          echo "CXX=g++-12" >> $GITHUB_ENV
+        elif [ "${{ matrix.compiler }}" = "clang" ]; then
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y clang-15
+            echo "CC=clang-15" >> $GITHUB_ENV
+            echo "CXX=clang++-15" >> $GITHUB_ENV
+          else
+            echo "CC=clang" >> $GITHUB_ENV
+            echo "CXX=clang++" >> $GITHUB_ENV
+          fi
+        fi
+
+    - name: Setup MSVC (Windows)
+      if: runner.os == 'Windows'
+      uses: microsoft/setup-msbuild@v1.3
+
+    - name: Configure CMake
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON
+
+    - name: Build
+      run: cmake --build build --config Release --parallel
+
+    - name: Run Tests
+      working-directory: build
+      run: ctest --output-on-failure --parallel
+
+    - name: Run Benchmarks
+      working-directory: build
+      run: |
+        if [ "${{ runner.os }}" != "Windows" ]; then
+          ./benchmarks/benchmark
+        else
+          ./benchmarks/Release/benchmark.exe
+        fi
+      shell: bash
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install coverage tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-12 g++-12 gcovr
+
+    - name: Configure CMake with coverage
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_CXX_COMPILER=g++-12 \
+          -DCMAKE_CXX_FLAGS="--coverage -g -O0" \
+          -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+          -DBUILD_TESTING=ON
+
+    - name: Build with coverage
+      run: cmake --build build --parallel
+
+    - name: Run tests for coverage
+      working-directory: build
+      run: ctest --output-on-failure
+
+    - name: Generate coverage report
+      run: |
+        gcovr --root . --exclude build/_deps --exclude tests \
+          --html --html-details -o coverage.html \
+          --xml -o coverage.xml
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+
+  sanitizers:
+    name: Sanitizers (AddressSanitizer + UBSan)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-15
+
+    - name: Configure with sanitizers
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_CXX_COMPILER=clang++-15 \
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all" \
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+          -DBUILD_TESTING=ON
+
+    - name: Build with sanitizers
+      run: cmake --build build --parallel
+
+    - name: Run tests with sanitizers
+      working-directory: build
+      env:
+        ASAN_OPTIONS: detect_odr_violation=0:abort_on_error=1
+        UBSAN_OPTIONS: abort_on_error=1
+      run: ctest --output-on-failure
+
+  thread-sanitizer:
+    name: ThreadSanitizer
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-15
+
+    - name: Configure with ThreadSanitizer
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_CXX_COMPILER=clang++-15 \
+          -DCMAKE_CXX_FLAGS="-fsanitize=thread -g" \
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread" \
+          -DBUILD_TESTING=ON
+
+    - name: Build with ThreadSanitizer
+      run: cmake --build build --parallel
+
+    - name: Run tests with ThreadSanitizer
+      working-directory: build
+      env:
+        TSAN_OPTIONS: abort_on_error=1:halt_on_error=1
+      run: ctest --output-on-failure
+
+  valgrind:
+    name: Valgrind Memory Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Valgrind
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind gcc-12 g++-12
+
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_CXX_COMPILER=g++-12 \
+          -DBUILD_TESTING=ON
+
+    - name: Build
+      run: cmake --build build --parallel
+
+    - name: Run tests with Valgrind
+      working-directory: build
+      run: |
+        # Run a subset of tests with Valgrind (full suite would be too slow)
+        valgrind --tool=memcheck --leak-check=full --error-exitcode=1 \
+          ./tests/ring_buffer_test "[basic]"
