@@ -112,7 +112,7 @@ std::optional<T> try_pop();
 // Check if buffer appears empty
 bool empty() const;
 
-// Check if buffer appears full  
+// Check if buffer appears full
 bool full() const;
 
 // Get approximate current size
@@ -186,7 +186,7 @@ Automatically tested on:
 
 With comprehensive validation:
 - **AddressSanitizer** - Memory error detection
-- **ThreadSanitizer** - Race condition detection  
+- **ThreadSanitizer** - Race condition detection
 - **UndefinedBehaviorSanitizer** - UB detection
 - **Valgrind** - Memory leak detection
 - **Code coverage** reporting
@@ -195,13 +195,13 @@ With comprehensive validation:
 
 Perfect for:
 - **High-frequency sensor data** streaming
-- **Audio/video processing** pipelines  
+- **Audio/video processing** pipelines
 - **Game engine** component communication
 - **Financial trading** systems
 - **Real-time control** systems
 - **Inter-thread messaging** with predictable latency
 
-## ⚠️ Important Notes
+## Important Notes
 
 - **Capacity must be power of 2** (enforced at compile time)
 - **Actual storage capacity is Capacity-1** (one slot kept empty)

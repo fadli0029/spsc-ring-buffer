@@ -105,7 +105,11 @@ jobs:
 
     - name: Generate coverage report
       run: |
-        gcovr --root . --exclude build/_deps --exclude tests \
+        gcovr --root . \
+          --exclude 'build/_deps/.*' \
+          --exclude 'tests/.*' \
+          --exclude '.*/catch2/.*' \
+          --gcov-executable gcov-12 \
           --html --html-details -o coverage.html \
           --xml -o coverage.xml
 
