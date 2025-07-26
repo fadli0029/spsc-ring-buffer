@@ -433,7 +433,15 @@ TEST_CASE("Comparison with std::queue", "[comparison][benchmark]") {
         
         // In CI environments or under certain conditions, the lock-free implementation
         // might not show performance benefits due to virtualization, limited cores, etc.
+#ifdef _MSC_VER
+        char* ci_env = nullptr;
+        size_t len = 0;
+        bool is_ci = (_dupenv_s(&ci_env, &len, "CI") == 0 && ci_env != nullptr);
+        if (ci_env) free(ci_env);
+        if (is_ci) {
+#else
         if (std::getenv("CI")) {
+#endif
             // In CI, we only check that the implementation works correctly
             // Performance can vary significantly in virtualized environments
             INFO("Performance comparison skipped in CI environment");
