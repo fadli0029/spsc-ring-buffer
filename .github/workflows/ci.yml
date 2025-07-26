@@ -105,11 +105,14 @@ jobs:
 
     - name: Generate coverage report
       run: |
-        # Remove coverage data from dependencies to avoid gcovr errors
+        # Remove all coverage files from dependencies to avoid gcovr errors
         find build/_deps -name "*.gcda" -delete || true
+        find build/_deps -name "*.gcno" -delete || true
         
+        # Run gcovr only on our source files
         gcovr --root . \
           --exclude 'tests/.*' \
+          --exclude 'build/.*' \
           --gcov-executable gcov-12 \
           --html --html-details -o coverage.html \
           --xml -o coverage.xml
