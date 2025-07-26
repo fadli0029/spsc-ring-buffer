@@ -15,7 +15,12 @@ if(MSVC)
     add_compile_options(/W4 /WX)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
-    add_compile_options(-O3 -march=native)  # Optimize for target machine
+    # Only use -march=native if not in CI environment
+    if(NOT DEFINED ENV{CI})
+        add_compile_options(-O3 -march=native)  # Optimize for target machine
+    else()
+        add_compile_options(-O3)  # Use generic optimization in CI
+    endif()
 endif()
 
 # Header-only library target
