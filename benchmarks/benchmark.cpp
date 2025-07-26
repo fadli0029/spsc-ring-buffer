@@ -360,7 +360,13 @@ void benchmarkMemoryUsage() {
 int main() {
     std::cout << "SPSC Ring Buffer Benchmark Suite" << std::endl;
     std::cout << "=================================" << std::endl;
+#ifdef __VERSION__
     std::cout << "Compiler: " << __VERSION__ << std::endl;
+#elif defined(_MSC_VER)
+    std::cout << "Compiler: MSVC " << _MSC_VER << std::endl;
+#else
+    std::cout << "Compiler: Unknown" << std::endl;
+#endif
     std::cout << "CPU Cores: " << std::thread::hardware_concurrency() << std::endl;
     
     benchmarkMaxThroughput();

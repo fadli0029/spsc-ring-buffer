@@ -12,7 +12,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Add compile options
 if(MSVC)
-    add_compile_options(/W4 /WX)
+    add_compile_options(/W4 /WX /wd4324)  # Disable warning about structure padding
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
     # Only use -march=native if not in CI environment
