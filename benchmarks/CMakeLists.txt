@@ -17,7 +17,7 @@ target_compile_features(benchmark PRIVATE cxx_std_17)
 if(MSVC)
     target_compile_options(benchmark PRIVATE /O2 /DNDEBUG)
 else()
-    # Only use -march=native if not in CI environment
+    # Only use -march=native and -flto if not in CI environment
     if(NOT DEFINED ENV{CI})
         target_compile_options(benchmark PRIVATE 
             -O3          # Maximum optimization
@@ -25,11 +25,11 @@ else()
             -DNDEBUG     # Disable assertions
             -flto        # Link-time optimization
         )
+        target_link_options(benchmark PRIVATE -flto)
     else()
         target_compile_options(benchmark PRIVATE 
             -O3          # Maximum optimization
             -DNDEBUG     # Disable assertions
-            -flto        # Link-time optimization
         )
     endif()
 endif()
